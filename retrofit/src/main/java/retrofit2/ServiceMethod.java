@@ -23,19 +23,24 @@ import javax.annotation.Nullable;
 
 abstract class ServiceMethod<T> {
   static <T> ServiceMethod<T> parseAnnotations(Retrofit retrofit, Method method) {
+    //解析注解，实例化一个 requestFactory
     RequestFactory requestFactory = RequestFactory.parseAnnotations(retrofit, method);
 
+    //获取方法的返回类型Type对象，该对象在编码时在方法中声明，也就是我们自己在API service中声明的返回类型，如Call<ResponseBody>...
     Type returnType = method.getGenericReturnType();
+    //如果是不能解决的类型，抛出异常
     if (Utils.hasUnresolvableType(returnType)) {
       throw methodError(
           method,
           "Method return type must not include a type variable or wildcard: %s",
           returnType);
     }
+    //如果是 void 类型，抛出异常
     if (returnType == void.class) {
       throw methodError(method, "Service methods cannot return void.");
     }
 
+    //解析注解，实例化一个 HttpServiceMethod 对象，并返回
     return HttpServiceMethod.parseAnnotations(retrofit, method, requestFactory);
   }
 

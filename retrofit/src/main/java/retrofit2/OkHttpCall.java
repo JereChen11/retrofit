@@ -114,12 +114,14 @@ final class OkHttpCall<T> implements Call<T> {
 
   @Override
   public void enqueue(final Callback<T> callback) {
+    //检查一下callback是否为空
     Objects.requireNonNull(callback, "callback == null");
 
     okhttp3.Call call;
     Throwable failure;
 
     synchronized (this) {
+      //判断请求是否已经被执行
       if (executed) throw new IllegalStateException("Already executed.");
       executed = true;
 
@@ -127,6 +129,7 @@ final class OkHttpCall<T> implements Call<T> {
       failure = creationFailure;
       if (call == null && failure == null) {
         try {
+          //构造原始请求
           call = rawCall = createRawCall();
         } catch (Throwable t) {
           throwIfFatal(t);
@@ -136,10 +139,12 @@ final class OkHttpCall<T> implements Call<T> {
     }
 
     if (failure != null) {
+      //回调callback.onFailure()方法
       callback.onFailure(this, failure);
       return;
     }
 
+    //请求是否被取消
     if (canceled) {
       call.cancel();
     }
@@ -150,6 +155,7 @@ final class OkHttpCall<T> implements Call<T> {
           public void onResponse(okhttp3.Call call, okhttp3.Response rawResponse) {
             Response<T> response;
             try {
+              //解析最初始的response，转换成我们想要的格式类型
               response = parseResponse(rawResponse);
             } catch (Throwable e) {
               throwIfFatal(e);
@@ -158,6 +164,7 @@ final class OkHttpCall<T> implements Call<T> {
             }
 
             try {
+              //回调callback.onResponse()方法
               callback.onResponse(OkHttpCall.this, response);
             } catch (Throwable t) {
               throwIfFatal(t);
@@ -172,6 +179,7 @@ final class OkHttpCall<T> implements Call<T> {
 
           private void callFailure(Throwable e) {
             try {
+              //回调callback.onFailure()方法
               callback.onFailure(OkHttpCall.this, e);
             } catch (Throwable t) {
               throwIfFatal(t);
@@ -191,19 +199,25 @@ final class OkHttpCall<T> implements Call<T> {
     okhttp3.Call call;
 
     synchronized (this) {
+      //判断请求是否已经被执行，如果已被执行则抛出异常
       if (executed) throw new IllegalStateException("Already executed.");
       executed = true;
-
+      //获取最原始的请求
       call = getRawCall();
     }
 
     if (canceled) {
       call.cancel();
     }
-
+    //执行请求，并且解析服务器返回的Response
     return parseResponse(call.execute());
   }
 
+  /**
+   * 构造原始请求
+   * @return
+   * @throws IOException
+   */
   private okhttp3.Call createRawCall() throws IOException {
     okhttp3.Call call = callFactory.newCall(requestFactory.create(args));
     if (call == null) {
@@ -216,6 +230,7 @@ final class OkHttpCall<T> implements Call<T> {
     ResponseBody rawBody = rawResponse.body();
 
     // Remove the body's source (the only stateful object) so we can pass the response along.
+    // 理解成删除body的状态，这样我们就可以传递Response了？？
     rawResponse =
         rawResponse
             .newBuilder()
@@ -223,6 +238,7 @@ final class OkHttpCall<T> implements Call<T> {
             .build();
 
     int code = rawResponse.code();
+    //请求失败
     if (code < 200 || code >= 300) {
       try {
         // Buffer the entire body to avoid future I/O.
@@ -233,11 +249,13 @@ final class OkHttpCall<T> implements Call<T> {
       }
     }
 
+    //请求成功
     if (code == 204 || code == 205) {
       rawBody.close();
       return Response.success(null, rawResponse);
     }
 
+    //转换成我们期望的类型
     ExceptionCatchingResponseBody catchingBody = new ExceptionCatchingResponseBody(rawBody);
     try {
       T body = responseConverter.convert(catchingBody);

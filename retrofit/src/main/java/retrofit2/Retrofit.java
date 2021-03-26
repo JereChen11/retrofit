@@ -138,12 +138,14 @@ public final class Retrofit {
    */
   @SuppressWarnings("unchecked") // Single-interface proxy creation guarded by parameter safety.
   public <T> T create(final Class<T> service) {
+    //验证 api service
     validateServiceInterface(service);
     return (T)
+            //这里采用了动态代理模式， service 就是被代理类
         Proxy.newProxyInstance(
             service.getClassLoader(),
             new Class<?>[] {service},
-            new InvocationHandler() {
+            new InvocationHandler() { //动态代理类
               private final Platform platform = Platform.get();
               private final Object[] emptyArgs = new Object[0];
 
@@ -155,6 +157,7 @@ public final class Retrofit {
                   return method.invoke(this, args);
                 }
                 args = args != null ? args : emptyArgs;
+                //如果不是默认方法，返回loadServiceMethod()
                 return platform.isDefaultMethod(method)
                     ? platform.invokeDefaultMethod(method, service, proxy, args)
                     : loadServiceMethod(method).invoke(args);
@@ -163,14 +166,19 @@ public final class Retrofit {
   }
 
   private void validateServiceInterface(Class<?> service) {
+    //service 必须是 interface
     if (!service.isInterface()) {
       throw new IllegalArgumentException("API declarations must be interfaces.");
     }
 
+    //加入到队列中
     Deque<Class<?>> check = new ArrayDeque<>(1);
     check.add(service);
+    //遍历队列
     while (!check.isEmpty()) {
+      //从对头取出
       Class<?> candidate = check.removeFirst();
+      //获取service实体的类型参数，是一个数组的类型
       if (candidate.getTypeParameters().length != 0) {
         StringBuilder message =
             new StringBuilder("Type parameters are unsupported on ").append(candidate.getName());
@@ -184,21 +192,33 @@ public final class Retrofit {
 
     if (validateEagerly) {
       Platform platform = Platform.get();
+      //遍历 service 中定义的所有方法
       for (Method method : service.getDeclaredMethods()) {
         if (!platform.isDefaultMethod(method) && !Modifier.isStatic(method.getModifiers())) {
+          //加载请求方法。
           loadServiceMethod(method);
         }
       }
     }
   }
 
+  /**
+   * 加载一个 ServiceMethod ，将我们 Service 接口中定义的方法调整为真正请求需要的方法。
+   * @param method
+   * @return`
+   */
   ServiceMethod<?> loadServiceMethod(Method method) {
+    //先到缓存中去拿取，可以拿到则直接返回
     ServiceMethod<?> result = serviceMethodCache.get(method);
     if (result != null) return result;
 
+    //加锁
     synchronized (serviceMethodCache) {
+      //再去缓存中拿一次
       result = serviceMethodCache.get(method);
+      //如果缓存中是空的
       if (result == null) {
+        //通过解析注解方法，实例化一个新的 ServiceMethod，并加入到缓存中
         result = ServiceMethod.parseAnnotations(this, method);
         serviceMethodCache.put(method, result);
       }
@@ -356,6 +376,7 @@ public final class Retrofit {
     Objects.requireNonNull(type, "type == null");
     Objects.requireNonNull(annotations, "annotations == null");
 
+    //遍历 convertFactories，我们的 GsonConverterFactory 正是被加入到了这里，到这里又被拿出来
     int start = converterFactories.indexOf(skipPast) + 1;
     for (int i = start, count = converterFactories.size(); i < count; i++) {
       Converter<ResponseBody, ?> converter =
@@ -634,10 +655,12 @@ public final class Retrofit {
       }
 
       // Make a defensive copy of the adapters and add the default Call adapter.
+      // 请求的适配器列表， 比如：RxJava2
       List<CallAdapter.Factory> callAdapterFactories = new ArrayList<>(this.callAdapterFactories);
       callAdapterFactories.addAll(platform.defaultCallAdapterFactories(callbackExecutor));
 
       // Make a defensive copy of the converters.
+      // 转换器列表，比如：GsonConverterFactory
       List<Converter.Factory> converterFactories =
           new ArrayList<>(
               1 + this.converterFactories.size() + platform.defaultConverterFactoriesSize());
