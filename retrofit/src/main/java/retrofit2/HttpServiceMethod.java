@@ -26,22 +26,29 @@ import javax.annotation.Nullable;
 import kotlin.coroutines.Continuation;
 import okhttp3.ResponseBody;
 
-/** Adapts an invocation of an interface method into an HTTP call. */
+/**
+ *  Adapts an invocation of an interface method into an HTTP call.
+ *  将接口方法的调用调整为HTTP调用
+ */
 abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<ReturnT> {
   /**
    * Inspects the annotations on an interface method to construct a reusable service method that
    * speaks HTTP. This requires potentially-expensive reflection so it is best to build each service
    * method only once and reuse it.
+   * 检查接口方法上的注释，以构造一个使用HTTP的可重用服务方法。这需要潜在的昂贵反射，因此最好只构建每个服务方法一次并重用它。
    */
   static <ResponseT, ReturnT> HttpServiceMethod<ResponseT, ReturnT> parseAnnotations(
       Retrofit retrofit, Method method, RequestFactory requestFactory) {
+    //是否是kotlin挂起函数
     boolean isKotlinSuspendFunction = requestFactory.isKotlinSuspendFunction;
     boolean continuationWantsResponse = false;
     boolean continuationBodyNullable = false;
 
     Annotation[] annotations = method.getAnnotations();
     Type adapterType;
+    //是 kotlin 挂起函数
     if (isKotlinSuspendFunction) {
+      //获取方法的返回类型
       Type[] parameterTypes = method.getGenericParameterTypes();
       Type responseType =
           Utils.getParameterLowerBound(
@@ -63,6 +70,7 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
       adapterType = method.getGenericReturnType();
     }
 
+    //创建 CallAdapter
     CallAdapter<ResponseT, ReturnT> callAdapter =
         createCallAdapter(retrofit, method, adapterType, annotations);
     Type responseType = callAdapter.responseType();
@@ -74,6 +82,7 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
               + "' is not a valid response body type. Did you mean ResponseBody?");
     }
     if (responseType == Response.class) {
+      //必须包含类的类型，比如：String, UserInfo，这样？？
       throw methodError(method, "Response must include generic type (e.g., Response<String>)");
     }
     // TODO support Unit for Kotlin?
@@ -81,11 +90,13 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
       throw methodError(method, "HEAD method must use Void as response type.");
     }
 
+    //调用Converter，将 ResponseBody 转换成 ResponseT 类型
     Converter<ResponseBody, ResponseT> responseConverter =
         createResponseConverter(retrofit, method, responseType);
 
     okhttp3.Call.Factory callFactory = retrofit.callFactory;
     if (!isKotlinSuspendFunction) {
+      //不是kotlin挂起方法，返回 CallAdapted，其实也就是调用 callAdapter.adapter 方法
       return new CallAdapted<>(requestFactory, callFactory, responseConverter, callAdapter);
     } else if (continuationWantsResponse) {
       //noinspection unchecked Kotlin compiler guarantees ReturnT to be Object.
@@ -142,7 +153,9 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
 
   @Override
   final @Nullable ReturnT invoke(Object[] args) {
+    //新建一个 OkHttpCall 请求
     Call<ResponseT> call = new OkHttpCall<>(requestFactory, args, callFactory, responseConverter);
+    //然后调用 adapt 方法，CallAdapted 有重写 adapt 方法，然后调用 callAdapter.adapt(call) 方法
     return adapt(call, args);
   }
 

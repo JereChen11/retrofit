@@ -34,6 +34,7 @@ import retrofit2.http.Query;
 import retrofit2.http.QueryMap;
 
 /**
+ * 将对象与它们在HTTP中的需要的格式进行来回转换
  * Convert objects to and from their representation in HTTP. Instances are created by {@linkplain
  * Factory a factory} which is {@linkplain Retrofit.Builder#addConverterFactory(Factory) installed}
  * into the {@link Retrofit} instance.
@@ -49,6 +50,8 @@ public interface Converter<F, T> {
      * {@code type} cannot be handled by this factory. This is used to create converters for
      * response types such as {@code SimpleResponse} from a {@code Call<SimpleResponse>}
      * declaration.
+     *
+     * 将 responseBody 装换成需要的格式
      */
     public @Nullable Converter<ResponseBody, ?> responseBodyConverter(
         Type type, Annotation[] annotations, Retrofit retrofit) {
@@ -59,6 +62,8 @@ public interface Converter<F, T> {
      * Returns a {@link Converter} for converting {@code type} to an HTTP request body, or null if
      * {@code type} cannot be handled by this factory. This is used to create converters for types
      * specified by {@link Body @Body}, {@link Part @Part}, and {@link PartMap @PartMap} values.
+     *
+     * 将 ? 装换成需要的RequestBody格式
      */
     public @Nullable Converter<?, RequestBody> requestBodyConverter(
         Type type,
@@ -74,6 +79,8 @@ public interface Converter<F, T> {
      * specified by {@link Field @Field}, {@link FieldMap @FieldMap} values, {@link Header @Header},
      * {@link HeaderMap @HeaderMap}, {@link Path @Path}, {@link Query @Query}, and {@link
      * QueryMap @QueryMap} values.
+     *
+     * 将 ？ 转换成 String
      */
     public @Nullable Converter<?, String> stringConverter(
         Type type, Annotation[] annotations, Retrofit retrofit) {

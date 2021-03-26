@@ -82,14 +82,18 @@ final class RequestFactory {
   RequestFactory(Builder builder) {
     method = builder.method;
     baseUrl = builder.retrofit.baseUrl;
+    //请求方式
     httpMethod = builder.httpMethod;
     relativeUrl = builder.relativeUrl;
     headers = builder.headers;
     contentType = builder.contentType;
+    //有没有请求体
     hasBody = builder.hasBody;
+    //是不是 FormUrlEncoded
     isFormEncoded = builder.isFormEncoded;
     isMultipart = builder.isMultipart;
     parameterHandlers = builder.parameterHandlers;
+    //是否是kotlin 协程 suspend 方法
     isKotlinSuspendFunction = builder.isKotlinSuspendFunction;
   }
 
@@ -177,20 +181,25 @@ final class RequestFactory {
     }
 
     RequestFactory build() {
+      //遍历方法中的注解
       for (Annotation annotation : methodAnnotations) {
+        //解析注解方法，例如：GET POST
         parseMethodAnnotation(annotation);
       }
 
+      //请求方式不能为空，例如：GET POST
       if (httpMethod == null) {
         throw methodError(method, "HTTP method annotation is required (e.g., @GET, @POST, etc.).");
       }
 
+      //request body 不为空时
       if (!hasBody) {
         if (isMultipart) {
           throw methodError(
               method,
               "Multipart can only be specified on HTTP methods with request body (e.g., @POST).");
         }
+        //就是在service 为 POST 方法，添加@FormUrlEncoded 注解
         if (isFormEncoded) {
           throw methodError(
               method,
@@ -206,6 +215,7 @@ final class RequestFactory {
             parseParameter(p, parameterTypes[p], parameterAnnotationsArray[p], p == lastParameter);
       }
 
+      //下面都是一些注解规则，出错，抛出异常提醒用户
       if (relativeUrl == null && !gotUrl) {
         throw methodError(method, "Missing either @%s URL or @Url parameter.", httpMethod);
       }
