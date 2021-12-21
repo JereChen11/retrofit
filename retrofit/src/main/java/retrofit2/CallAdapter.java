@@ -24,6 +24,9 @@ import javax.annotation.Nullable;
  * Adapts a {@link Call} with response type {@code R} into the type of {@code T}. Instances are
  * created by {@linkplain Factory a factory} which is {@linkplain
  * Retrofit.Builder#addCallAdapterFactory(Factory) installed} into the {@link Retrofit} instance.
+ *
+ * 将响应为R的请求适配为T。
+ * 通过 Retrofit.Builder#addCallAdapterFactory(Factory) 来添加
  */
 public interface CallAdapter<R, T> {
   /**
@@ -31,13 +34,17 @@ public interface CallAdapter<R, T> {
    * object. For example, the response type for {@code Call<Repo>} is {@code Repo}. This type is
    * used to prepare the {@code call} passed to {@code #adapt}.
    *
+   * 返回适配器要将Http响应转换成的对象类型。
+   *
    * <p>Note: This is typically not the same type as the {@code returnType} provided to this call
-   * adapter's factory.
+   * adapter's factory. 通常与提供给Factory的returnType不同
    */
   Type responseType();
 
   /**
    * Returns an instance of {@code T} which delegates to {@code call}.
+   *
+   * 执行适配方法，返回一个T类型的对象实例
    *
    * <p>For example, given an instance for a hypothetical utility, {@code Async}, this instance
    * would return a new {@code Async<R>} which invoked {@code call} when run.
@@ -64,6 +71,7 @@ public interface CallAdapter<R, T> {
     /**
      * Returns a call adapter for interface methods that return {@code returnType}, or null if it
      * cannot be handled by this factory.
+     * 为返回 returnType 的接口方法返回一个CallAdapter，如果无法处理，就返回 NUll
      */
     public abstract @Nullable CallAdapter<?, ?> get(
         Type returnType, Annotation[] annotations, Retrofit retrofit);
@@ -71,6 +79,8 @@ public interface CallAdapter<R, T> {
     /**
      * Extract the upper bound of the generic parameter at {@code index} from {@code type}. For
      * example, index 1 of {@code Map<String, ? extends Runnable>} returns {@code Runnable}.
+     *
+     * 从{@code type}中提取在{@code index}处的泛型参数的上限
      */
     protected static Type getParameterUpperBound(int index, ParameterizedType type) {
       return Utils.getParameterUpperBound(index, type);
@@ -79,6 +89,8 @@ public interface CallAdapter<R, T> {
     /**
      * Extract the raw class type from {@code type}. For example, the type representing {@code
      * List<? extends Runnable>} returns {@code List.class}.
+     *
+     * 从type中提取原始类类型，例如：type为 List<? extends Runnable>，会返回 List.class。
      */
     protected static Class<?> getRawType(Type type) {
       return Utils.getRawType(type);

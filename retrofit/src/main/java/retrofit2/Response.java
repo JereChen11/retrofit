@@ -28,7 +28,7 @@ public final class Response<T> {
   public static <T> Response<T> success(@Nullable T body) {
     return success(
         body,
-        new okhttp3.Response.Builder() //
+        new okhttp3.Response.Builder() //实例化一个okhttp3.Response对象
             .code(200)
             .message("OK")
             .protocol(Protocol.HTTP_1_1)
@@ -46,7 +46,7 @@ public final class Response<T> {
     }
     return success(
         body,
-        new okhttp3.Response.Builder() //
+        new okhttp3.Response.Builder() //实例化一个okhttp3.Response对象
             .code(code)
             .message("Response.success()")
             .protocol(Protocol.HTTP_1_1)
@@ -62,7 +62,7 @@ public final class Response<T> {
     Objects.requireNonNull(headers, "headers == null");
     return success(
         body,
-        new okhttp3.Response.Builder() //
+        new okhttp3.Response.Builder() //实例化一个okhttp3.Response对象
             .code(200)
             .message("OK")
             .protocol(Protocol.HTTP_1_1)
@@ -77,9 +77,11 @@ public final class Response<T> {
    */
   public static <T> Response<T> success(@Nullable T body, okhttp3.Response rawResponse) {
     Objects.requireNonNull(rawResponse, "rawResponse == null");
+    //如果请求失败，抛出异常。根据响应码来判断是否成功，[200，300)代表成功。
     if (!rawResponse.isSuccessful()) {
       throw new IllegalArgumentException("rawResponse must be successful response");
     }
+    //实例化一个Response对象
     return new Response<>(rawResponse, body, null);
   }
 
@@ -105,6 +107,7 @@ public final class Response<T> {
   public static <T> Response<T> error(ResponseBody body, okhttp3.Response rawResponse) {
     Objects.requireNonNull(body, "body == null");
     Objects.requireNonNull(rawResponse, "rawResponse == null");
+    //如果请求成功，则抛出异常
     if (rawResponse.isSuccessful()) {
       throw new IllegalArgumentException("rawResponse should not be successful response");
     }
@@ -142,7 +145,9 @@ public final class Response<T> {
     return rawResponse.headers();
   }
 
-  /** Returns true if {@link #code()} is in the range [200..300). */
+  /** Returns true if {@link #code()} is in the range [200..300).
+   * 实际上走的是OKhttp.Response.isSuccessful()
+   * */
   public boolean isSuccessful() {
     return rawResponse.isSuccessful();
   }

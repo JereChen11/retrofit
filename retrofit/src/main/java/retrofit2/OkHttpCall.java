@@ -149,6 +149,7 @@ final class OkHttpCall<T> implements Call<T> {
       call.cancel();
     }
 
+    //执行call.enqueue方法
     call.enqueue(
         new okhttp3.Callback() {
           @Override
@@ -209,7 +210,7 @@ final class OkHttpCall<T> implements Call<T> {
     if (canceled) {
       call.cancel();
     }
-    //执行请求，并且解析服务器返回的Response
+    //执行请求，并且解析响应，将okhttp3.response 转换成 retrofit2.response
     return parseResponse(call.execute());
   }
 
@@ -226,6 +227,12 @@ final class OkHttpCall<T> implements Call<T> {
     return call;
   }
 
+  /**
+   * 解析响应，就是就okhttp3.response 转换成 retrofit2.response
+   * @param rawResponse
+   * @return
+   * @throws IOException
+   */
   Response<T> parseResponse(okhttp3.Response rawResponse) throws IOException {
     ResponseBody rawBody = rawResponse.body();
 

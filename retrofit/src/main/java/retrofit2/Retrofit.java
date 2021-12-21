@@ -64,6 +64,11 @@ import retrofit2.http.Url;
  * @author Jake Wharton (jw@squareup.com)
  */
 public final class Retrofit {
+  /**
+   * 网络请求配置缓存，
+   *
+   * 用来存放网络请求相关的配置，如网络请求方法、convert装换器、adapter适配器..
+   */
   private final Map<Method, ServiceMethod<?>> serviceMethodCache = new ConcurrentHashMap<>();
 
   final okhttp3.Call.Factory callFactory;
@@ -144,10 +149,15 @@ public final class Retrofit {
    */
   @SuppressWarnings("unchecked") // Single-interface proxy creation guarded by parameter safety.
   public <T> T create(final Class<T> service) {
-    //验证 api service
+    //service就是用户定义的API接口，验证 api service
     validateServiceInterface(service);
     return (T)
-            //这里采用了动态代理模式， service 就是被代理类
+        //这里采用了动态代理模式， service 就是被代理类
+        //todo 为什么要采用动态代理，有什么好处吗？用别的行不行？
+      //因为 interface 不能被实例化，所以这里用动态代理来在运行期间实例化API接口
+      //todo，既然是接口不能进行实例化，所以采用了动态代理，这样为什么不直接定义个类来放这些api接口呢？而是采用了interface
+      //todo, 这一步是不是可以从业务解耦的角度来进行思考，
+      //通过动态代理可以为APIService中的每个api接口方法生成一个具体的代理类
         Proxy.newProxyInstance(
             service.getClassLoader(),
             new Class<?>[] {service},
@@ -163,7 +173,7 @@ public final class Retrofit {
                 }
                 args = args != null ? args : emptyArgs;
                 Platform platform = Platform.get();
-                //如果不是默认方法，返回loadServiceMethod()
+                //如果不是系统默认方法，通过loadServiceMethod()方法返回一个ServiceMethod，并调用invoke方法
                 return platform.isDefaultMethod(method)
                     ? platform.invokeDefaultMethod(method, service, proxy, args)
                     : loadServiceMethod(method).invoke(args);
@@ -172,7 +182,7 @@ public final class Retrofit {
   }
 
   private void validateServiceInterface(Class<?> service) {
-    //service 必须是 interface
+    //service 必须是 interface，否则抛出异常
     if (!service.isInterface()) {
       throw new IllegalArgumentException("API declarations must be interfaces.");
     }
@@ -182,7 +192,7 @@ public final class Retrofit {
     check.add(service);
     //遍历队列
     while (!check.isEmpty()) {
-      //从对头取出
+      //从队头取出
       Class<?> candidate = check.removeFirst();
       //获取service实体的类型参数，是一个数组的类型
       if (candidate.getTypeParameters().length != 0) {
@@ -196,10 +206,16 @@ public final class Retrofit {
       Collections.addAll(check, candidate.getInterfaces());
     }
 
+    //是否立即验证API接口中的所有方法，由用户设置，默认为false
     if (validateEagerly) {
       Platform platform = Platform.get();
       //遍历 service 中定义的所有方法
+      //扩充一下：
+      // getMethods(): 返回由类或接口声明的以及从超类和超接口继承的所有公共方法。
+      // getDeclaredMethods(): 返回类声明的方法，包括 public, protected, default (package)，但不包括继承的方法
+      // 所以，相对比于 getMethods 方法，getDeclaredMethods速度更快，尤其是在复杂的类中，如在Activity类中。
       for (Method method : service.getDeclaredMethods()) {
+        //如果该方法不是系统默认方法且方法修饰符不是静态方法就执行loadServiceMethod方法
         if (!platform.isDefaultMethod(method) && !Modifier.isStatic(method.getModifiers())) {
           //加载请求方法。
           loadServiceMethod(method);
@@ -210,8 +226,8 @@ public final class Retrofit {
 
   /**
    * 加载一个 ServiceMethod ，将我们 Service 接口中定义的方法调整为真正请求需要的方法。
-   * @param method
-   * @return`
+   * @param method Service 接口中定义的方法
+   * @return
    */
   ServiceMethod<?> loadServiceMethod(Method method) {
     //先到缓存中去拿取，可以拿到则直接返回
@@ -276,12 +292,13 @@ public final class Retrofit {
 
     int start = callAdapterFactories.indexOf(skipPast) + 1;
     for (int i = start, count = callAdapterFactories.size(); i < count; i++) {
+      //通过方法的返回值类型与注解信息来找到匹配的CallAdapter
       CallAdapter<?, ?> adapter = callAdapterFactories.get(i).get(returnType, annotations, this);
       if (adapter != null) {
         return adapter;
       }
     }
-
+    //如果找不到匹配的CallAdapter，则抛出异常
     StringBuilder builder =
         new StringBuilder("Could not locate call adapter for ").append(returnType).append(".\n");
     if (skipPast != null) {
@@ -364,7 +381,9 @@ public final class Retrofit {
   /**
    * Returns a {@link Converter} for {@link ResponseBody} to {@code type} from the available
    * {@linkplain #converterFactories() factories}.
+   * 从converterFactories中去寻找可以将ResponseBody转换成type类型的converter
    *
+   * 如果没有匹配该Type的converter，抛出异常
    * @throws IllegalArgumentException if no converter available for {@code type}.
    */
   public <T> Converter<ResponseBody, T> responseBodyConverter(Type type, Annotation[] annotations) {
@@ -385,6 +404,7 @@ public final class Retrofit {
     //遍历 convertFactories，我们的 GsonConverterFactory 正是被加入到了这里，到这里又被拿出来
     int start = converterFactories.indexOf(skipPast) + 1;
     for (int i = start, count = converterFactories.size(); i < count; i++) {
+      //通过转换类型与注解信息来找到匹配的Converter
       Converter<ResponseBody, ?> converter =
           converterFactories.get(i).responseBodyConverter(type, annotations, this);
       if (converter != null) {
@@ -392,7 +412,7 @@ public final class Retrofit {
         return (Converter<ResponseBody, T>) converter;
       }
     }
-
+    //如果找不到匹配的Converter，则抛出异常
     StringBuilder builder =
         new StringBuilder("Could not locate ResponseBody converter for ")
             .append(type)
@@ -452,11 +472,17 @@ public final class Retrofit {
    * optional.
    */
   public static final class Builder {
+    //实际的请求调用工厂，如 okhttp3.OkHttpClient
     private @Nullable okhttp3.Call.Factory callFactory;
+    //基础URL，如：域名
     private @Nullable HttpUrl baseUrl;
+    //数据转换器列表
     private final List<Converter.Factory> converterFactories = new ArrayList<>();
+    //请求适配器列表
     private final List<CallAdapter.Factory> callAdapterFactories = new ArrayList<>();
+    //回调方法执行器
     private @Nullable Executor callbackExecutor;
+    //
     private boolean validateEagerly;
 
     public Builder() {}

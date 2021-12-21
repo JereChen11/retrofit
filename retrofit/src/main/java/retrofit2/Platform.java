@@ -44,6 +44,7 @@ abstract class Platform {
   private static Platform createPlatform() {
     switch (System.getProperty("java.vm.name")) {
       case "Dalvik":
+        //如果支持Android24，就return Android24，否则返回Android21
         if (Android24.isSupported()) {
           return new Android24();
         }

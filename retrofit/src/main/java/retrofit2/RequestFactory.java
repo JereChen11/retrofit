@@ -149,9 +149,9 @@ final class RequestFactory {
 
     final Retrofit retrofit;
     final Method method;
-    final Annotation[] methodAnnotations;
-    final Annotation[][] parameterAnnotationsArray;
-    final Type[] parameterTypes;
+    final Annotation[] methodAnnotations;//方法注解
+    final Annotation[][] parameterAnnotationsArray;//参数注解数组
+    final Type[] parameterTypes;//参数类型数组
 
     boolean gotField;
     boolean gotPart;
@@ -183,11 +183,11 @@ final class RequestFactory {
     RequestFactory build() {
       //遍历方法中的注解
       for (Annotation annotation : methodAnnotations) {
-        //解析注解方法，例如：GET POST
+        //解析注解方法，就是@Target(METHOD)，例如：GET POST
         parseMethodAnnotation(annotation);
       }
 
-      //请求方式不能为空，例如：GET POST
+      //请求方式注解不能为空，例如：GET POST
       if (httpMethod == null) {
         throw methodError(method, "HTTP method annotation is required (e.g., @GET, @POST, etc.).");
       }
@@ -285,6 +285,7 @@ final class RequestFactory {
       }
 
       // Get the relative URL path and existing query string, if present.
+      //获取URL的path与query参数
       int question = value.indexOf('?');
       if (question != -1 && question < value.length() - 1) {
         // Ensure the query string does not have any named parameters.
@@ -364,6 +365,14 @@ final class RequestFactory {
       return result;
     }
 
+    /**
+     * 解析方法参数注解
+     * @param p
+     * @param type
+     * @param annotations
+     * @param annotation
+     * @return
+     */
     @Nullable
     private ParameterHandler<?> parseParameterAnnotation(
         int p, Type type, Annotation[] annotations, Annotation annotation) {

@@ -44,11 +44,13 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
     boolean continuationWantsResponse = false;
     boolean continuationBodyNullable = false;
 
+    //获取方法的注解信息
     Annotation[] annotations = method.getAnnotations();
+    //适配器类型，就是Retrofit.addCallAdapterFactory()添加的类型。
     Type adapterType;
     //是 kotlin 挂起函数
     if (isKotlinSuspendFunction) {
-      //获取方法的返回类型
+      //获取方法中形参的类型
       Type[] parameterTypes = method.getGenericParameterTypes();
       Type responseType =
           Utils.getParameterLowerBound(
@@ -67,12 +69,14 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
       adapterType = new Utils.ParameterizedTypeImpl(null, Call.class, responseType);
       annotations = SkipCallbackExecutorImpl.ensurePresent(annotations);
     } else {
+      //获取方法的返回值类型，也就是我们自己在API service接口中声明的返回类型，如Call<ResponseBody>...
       adapterType = method.getGenericReturnType();
     }
 
-    //创建 CallAdapter
+    //实例化一个 CallAdapter 对象
     CallAdapter<ResponseT, ReturnT> callAdapter =
         createCallAdapter(retrofit, method, adapterType, annotations);
+    //检查 responseType，如果不合格则抛出异常
     Type responseType = callAdapter.responseType();
     if (responseType == okhttp3.Response.class) {
       throw methodError(
@@ -86,11 +90,12 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
       throw methodError(method, "Response must include generic type (e.g., Response<String>)");
     }
     // TODO support Unit for Kotlin?
+    //@HEAD 必须与 Void 一起使用
     if (requestFactory.httpMethod.equals("HEAD") && !Void.class.equals(responseType)) {
       throw methodError(method, "HEAD method must use Void as response type.");
     }
 
-    //调用Converter，将 ResponseBody 转换成 ResponseT 类型
+    //实例化一个Converter对象，将 okhttp3.ResponseBody 转换成 ResponseT 类型
     Converter<ResponseBody, ResponseT> responseConverter =
         createResponseConverter(retrofit, method, responseType);
 
@@ -158,6 +163,17 @@ abstract class HttpServiceMethod<ResponseT, ReturnT> extends ServiceMethod<Retur
     //然后调用 adapt 方法，CallAdapted 有重写 adapt 方法，然后调用 callAdapter.adapt(call) 方法
     return adapt(call, args);
   }
+
+  /**
+   *
+   * Target(目标角色): Call<Object>, Observable<Object>。
+   * adaptee(需要适配的对象): OkHttpCall。
+   * adapter(适配器)：DefaultCallAdapterFactory.get()、RxJava2CallAdapter。
+   *
+   * @param call
+   * @param args
+   * @return
+   */
 
   protected abstract @Nullable ReturnT adapt(Call<ResponseT> call, Object[] args);
 

@@ -30,7 +30,7 @@ import okio.Timeout;
  * is busy writing its request or reading its response may receive a {@link IOException}; this is
  * working as designed.
  *
- * @param <T> Successful response body type.
+ * @param <T> Successful response body type.请求成功返回的响应体类型。
  */
 public interface Call<T> extends Cloneable {
   /**

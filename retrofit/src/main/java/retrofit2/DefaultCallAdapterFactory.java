@@ -35,13 +35,16 @@ final class DefaultCallAdapterFactory extends CallAdapter.Factory {
   @Override
   public @Nullable CallAdapter<?, ?> get(
       Type returnType, Annotation[] annotations, Retrofit retrofit) {
+    //判断returnType的原始返回类型是不是Call类型，即如果在API接口中定义的返回类型不是Call类型，返回null
     if (getRawType(returnType) != Call.class) {
       return null;
     }
+    //判断returnType是不是参数化类型
     if (!(returnType instanceof ParameterizedType)) {
       throw new IllegalArgumentException(
           "Call return type must be parameterized as Call<Foo> or Call<? extends Foo>");
     }
+    //是参数化类型，拿到其具体的类型
     final Type responseType = Utils.getParameterUpperBound(0, (ParameterizedType) returnType);
 
     final Executor executor =

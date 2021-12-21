@@ -23,10 +23,10 @@ import javax.annotation.Nullable;
 
 abstract class ServiceMethod<T> {
   static <T> ServiceMethod<T> parseAnnotations(Retrofit retrofit, Method method) {
-    //解析注解，实例化一个 requestFactory
+    //通过解析method的注解信息，实例化一个请求工厂对象，其包含请求方法,URL,header等请求信息。
     RequestFactory requestFactory = RequestFactory.parseAnnotations(retrofit, method);
 
-    //获取方法的返回类型Type对象，该对象在编码时在方法中声明，也就是我们自己在API service中声明的返回类型，如Call<ResponseBody>...
+    //获取方法的返回值类型，也就是我们自己在API service接口中声明的返回类型，如Call<ResponseBody>...
     Type returnType = method.getGenericReturnType();
     //如果是不能解决的类型，抛出异常
     if (Utils.hasUnresolvableType(returnType)) {
